@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="my">
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Spin Wheel</title>
@@ -173,80 +174,42 @@ button {
 </div>
 
 <script>
+  const SUPABASE_URL = "https://bombhzdpoclqukbrgepp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zNkw2E_GeQxbHwcnwo9XUg_ja22qGum";
+
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 
-let rewards = JSON.parse(localStorage.getItem("spinRewards")) || [
-  "Reward 1",
-  "Reward 2",
-  "Reward 3",
-  "Reward 4",
-  "Reward 5",
-  "Reward 6"
-];
+let rewards = [];
 
 let rotation = 0;
 let spinning = false;
+async function loadRewards() {
+  const { data, error } = await supabaseClient
+    .from("rewards")
+    .select("name")
+    .eq("active", true)
+    .order("sort_order", { ascending: true })
+    .order("id", { ascending: true });
 
-function saveRewards() {
-  localStorage.setItem("spinRewards", JSON.stringify(rewards));
-}
-
-function addReward() {
-  const input = document.getElementById("rewardInput");
-  const value = input.value.trim();
-
-  if (!value) return;
-
-  rewards.push(value);
-  input.value = "";
-
-  saveRewards();
-  drawWheel();
-  showRewards();
-}
-
-function deleteReward(index) {
-  rewards.splice(index, 1);
-
-  if (rewards.length === 0) {
-    rewards.push("Reward 1");
+  if (error) {
+    console.error("Load rewards error:", error);
+    document.getElementById("result").textContent = "Unable to load options";
+    return;
   }
 
-  saveRewards();
+  rewards = (data || []).map(item => item.name);
+
+  document.getElementById("result").textContent =
+    rewards.length ? "Ready to Spin" : "No options available";
+
   drawWheel();
-  showRewards();
 }
 
-function resetRewards() {
-  rewards = [
-    "Reward 1",
-    "Reward 2",
-    "Reward 3",
-    "Reward 4",
-    "Reward 5",
-    "Reward 6"
-  ];
-
-  saveRewards();
-  drawWheel();
-  showRewards();
-
-  document.getElementById("result").textContent = "Ready to Spin";
-}
-
-function showRewards() {
-  const list = document.getElementById("rewardList");
-
-  list.innerHTML = rewards.map((reward, index) => `
-    <div class="reward">
-      <span>${escapeHtml(reward)}</span>
-      <button class="delete" onclick="deleteReward(${index})">
-        Delete
-      </button>
-    </div>
-  `).join("");
-}
 
 function escapeHtml(text) {
   const div = document.createElement("div");
@@ -365,7 +328,7 @@ function spinWheel() {
 
 window.addEventListener("resize", resizeCanvas);
 
-showRewards();
+loadRewards();
 resizeCanvas();
 </script>
 
