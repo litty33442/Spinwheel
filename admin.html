@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Spin Wheel - Admin</title>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #0b1220;
+      color: white;
+    }
+
+    .container {
+      width: min(800px, 94%);
+      margin: auto;
+      padding: 35px 0;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 25px;
+    }
+
+    .card {
+      background: #151f32;
+      border-radius: 16px;
+      padding: 22px;
+      margin-bottom: 20px;
+    }
+
+    input {
+      width: 100%;
+      padding: 13px;
+      margin: 7px 0;
+      border-radius: 10px;
+      border: 1px solid #40506d;
+      background: #0c1525;
+      color: white;
+      font-size: 16px;
+    }
+
+    button {
+      border: 0;
+      border-radius: 9px;
+      padding: 11px 17px;
+      margin: 5px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .login {
+      background: #20bf6b;
+      color: white;
+      width: 100%;
+    }
+
+    .add {
+      background: #3498db;
+      color: white;
+    }
+
+    .edit {
+      background: #f1c40f;
+      color: #111;
+    }
+
+    .delete {
+      background: #e74c3c;
+      color: white;
+    }
+
+    .toggle {
+      background: #9b59b6;
+      color: white;
+    }
+
+    .logout {
+      background: #576574;
+      color: white;
+    }
+
+    .reward {
+      background: #0d1728;
+      padding: 15px;
+      border-radius: 12px;
+      margin: 10px 0;
+    }
+
+    .reward-name {
+      font-size: 18px;
+      font-weight: bold;
+      margin-bottom: 7px;
+    }
+
+    .status {
+      font-size: 13px;
+      color: #8ee6a8;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    #message {
+      margin-top: 12px;
+      min-height: 20px;
+      color: #ffd75f;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>⚙️ Spin Wheel Admin</h1>
+
+  <!-- LOGIN -->
+  <div id="loginBox" class="card">
+
+    <h2>Admin Login</h2>
+
+    <input
+      id="email"
+      type="email"
+      placeholder="Admin Email"
+    >
+
+    <input
+      id="password"
+      type="password"
+      placeholder="Password"
+    >
+
+    <button class="login" onclick="login()">
+      Login
+    </button>
+
+    <div id="loginMessage"></div>
+
+  </div>
+
+
+  <!-- ADMIN PANEL -->
+  <div id="adminPanel" class="hidden">
+
+    <div class="card">
+
+      <h2>Reward Management</h2>
+
+      <input
+        id="rewardName"
+        type="text"
+        placeholder="Reward / Option"
+      >
+
+      <button class="add" onclick="addReward()">
+        + Add Reward
+      </button>
+
+      <button class="logout" onclick="logout()">
+        Logout
+      </button>
+
+      <div id="message"></div>
+
+    </div>
+
+
+    <div class="card">
+
+      <h2>Rewards</h2>
+
+      <div id="rewardList">
+        Loading...
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+
+<script>
+
+// ===============================
+// SUPABASE CONFIG
+// ===============================
+
+const SUPABASE_URL = "https://bombhzdpoclqukbrgepp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_zNkw2E_GeQxbHwcnwo9XUg_ja22qGum";
+
+const supabaseClient =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+
+// ===============================
+// LOGIN
+// ===============================
+
+async function login() {
+
+  const email =
+    document.getElementById("email").value.trim();
+
+  const password =
+    document.getElementById("password").value;
+
+  const message =
+    document.getElementById("loginMessage");
+
+  message.textContent = "Logging in...";
+
+  const { error } =
+    await supabaseClient.auth.signInWithPassword({
+      email,
+      password
+    });
+
+  if (error) {
+    message.textContent =
+      "Login failed: " + error.message;
+
+    return;
+  }
+
+  message.textContent = "";
+
+  showAdmin();
+
+  loadRewards();
+}
+
+
+// ===============================
+// LOGOUT
+// ===============================
+
+async function logout() {
+
+  await supabaseClient.auth.signOut();
+
+  document
+    .getElementById("adminPanel")
+    .classList.add("hidden");
+
+  document
+    .getElementById("loginBox")
+    .classList.remove("hidden");
+}
+
+
+// ===============================
+// SHOW ADMIN
+// ===============================
+
+function showAdmin() {
+
+  document
+    .getElementById("loginBox")
+    .classList.add("hidden");
+
+  document
+    .getElementById("adminPanel")
+    .classList.remove("hidden");
+}
+
+
+// ===============================
+// CHECK LOGIN
+// ===============================
+
+async function checkLogin() {
+
+  const {
+    data: { session }
+  } = await supabaseClient.auth.getSession();
+
+  if (session) {
+
+    showAdmin();
+
+    loadRewards();
+
+  }
+}
+
+
+// ===============================
+// LOAD REWARDS
+// ===============================
+
+async function loadRewards() {
+
+  const list =
+    document.getElementById("rewardList");
+
+  list.textContent = "Loading...";
+
+  const { data, error } =
+    await supabaseClient
+      .from("rewards")
+      .select("*")
+      .order("sort_order", {
+        ascending: true
+      })
+      .order("id", {
+        ascending: true
+      });
+
+  if (error) {
+
+    list.textContent =
+      "Error: " + error.message;
+
+    return;
+  }
+
+  if (!data || data.length === 0) {
+
+    list.innerHTML =
+      "<p>No rewards yet.</p>";
+
+    return;
+  }
+
+  list.innerHTML = data.map(reward => {
+
+    return `
+      <div class="reward">
+
+        <div class="reward-name">
+          ${escapeHtml(reward.name)}
+        </div>
+
+        <div class="status">
+          ${reward.active ? "ACTIVE" : "INACTIVE"}
+        </div>
+
+        <div>
+
+          <button
+            class="edit"
+            onclick="editReward(${reward.id}, ${JSON.stringify(reward.name)})"
+          >
+            Edit
+          </button>
+
+          <button
+            class="toggle"
+            onclick="toggleReward(${reward.id}, ${reward.active})"
+          >
+            ${reward.active ? "Disable" : "Enable"}
+          </button>
+
+          <button
+            class="delete"
+            onclick="deleteReward(${reward.id})"
+          >
+            Delete
+          </button>
+
+        </div>
+
+      </div>
+    `;
+
+  }).join("");
+}
+
+
+// ===============================
+// ADD REWARD
+// ===============================
+
+async function addReward() {
+
+  const input =
+    document.getElementById("rewardName");
+
+  const name =
+    input.value.trim();
+
+  const message =
+    document.getElementById("message");
+
+  if (!name) {
+
+    message.textContent =
+      "Reward name ထည့်ပါ။";
+
+    return;
+  }
+
+  const { error } =
+    await supabaseClient
+      .from("rewards")
+      .insert({
+        name: name,
+        active: true
+      });
+
+  if (error) {
+
+    message.textContent =
+      "Add failed: " + error.message;
+
+    return;
+  }
+
+  input.value = "";
+
+  message.textContent =
+    "Reward added.";
+
+  loadRewards();
+}
+
+
+// ===============================
+// EDIT REWARD
+// ===============================
+
+async function editReward(id, oldName) {
+
+  const newName =
+    prompt(
+      "Reward အသစ်ထည့်ပါ:",
+      oldName
+    );
+
+  if (newName === null) return;
+
+  const name =
+    newName.trim();
+
+  if (!name) return;
+
+  const { error } =
+    await supabaseClient
+      .from("rewards")
+      .update({
+        name: name
+      })
+      .eq("id", id);
+
+  if (error) {
+
+    alert(
+      "Edit failed: " +
+      error.message
+    );
+
+    return;
+  }
+
+  loadRewards();
+}
+
+
+// ===============================
+// ENABLE / DISABLE
+// ===============================
+
+async function toggleReward(id, current) {
+
+  const { error } =
+    await supabaseClient
+      .from("rewards")
+      .update({
+        active: !current
+      })
+      .eq("id", id);
+
+  if (error) {
+
+    alert(
+      "Update failed: " +
+      error.message
+    );
+
+    return;
+  }
+
+  loadRewards();
+}
+
+
+// ===============================
+// DELETE
+// ===============================
+
+async function deleteReward(id) {
+
+  const ok =
+    confirm(
+      "ဒီ Reward ကို ဖျက်မှာသေချာပါသလား?"
+    );
+
+  if (!ok) return;
+
+  const { error } =
+    await supabaseClient
+      .from("rewards")
+      .delete()
+      .eq("id", id);
+
+  if (error) {
+
+    alert(
+      "Delete failed: " +
+      error.message
+    );
+
+    return;
+  }
+
+  loadRewards();
+}
+
+
+// ===============================
+// HTML ESCAPE
+// ===============================
+
+function escapeHtml(text) {
+
+  const div =
+    document.createElement("div");
+
+  div.textContent = text;
+
+  return div.innerHTML;
+}
+
+
+// ===============================
+// START
+// ===============================
+
+checkLogin();
+
+</script>
+
+</body>
+</html>
