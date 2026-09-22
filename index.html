@@ -136,31 +136,23 @@ button {
 
   <h1>🎡 Spin Wheel</h1>
 
- 
+<div class="controls">
+
+  <button class="spin" onclick="spinWheel()">
+    SPIN
+  </button>
+
+</div>
   <div class="wheel-area">
-    <div class="pointer"></div>
-    <canvas id="wheel"></canvas>
-  </div>
+  <div class="pointer"></div>
+  <canvas id="wheel"></canvas>
+</div>
 
-  <div class="result" id="result">
-    Ready to Spin
-  </div>
-
+<div class="result" id="result">
+  Ready to Spin
 </div>
 
 <script>
-  const SUPABASE_URL = "https://bombhzdpoclqukbrgepp.supabase.co";
-const SUPABASE_KEY = "sb_publishable_zNkw2E_GeQxbHwcnwo9XUg_ja22qGum";
-
-const supabaseClient = window.supabase.createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY
-);
-const canvas = document.getElementById("wheel");
-const ctx = canvas.getContext("2d");
-
-let rewards = [];
-
 let rotation = 0;
 let spinning = false;
 async function loadRewards() {
