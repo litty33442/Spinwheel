@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spin Wheel</title>
+
+<style>
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: Arial, sans-serif;
+  background: #0b1220;
+  color: white;
+  text-align: center;
+}
+
+.container {
+  width: min(900px, 94%);
+  margin: auto;
+  padding: 25px 0 50px;
+}
+
+h1 {
+  margin-bottom: 25px;
+}
+
+.controls {
+  background: #151f32;
+  padding: 20px;
+  border-radius: 16px;
+  margin-bottom: 25px;
+}
+
+input {
+  width: 70%;
+  padding: 13px;
+  border-radius: 10px;
+  border: 1px solid #40506d;
+  background: #0c1525;
+  color: white;
+  font-size: 16px;
+}
+
+button {
+  padding: 13px 20px;
+  border: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  font-weight: bold;
+  margin: 5px;
+}
+
+.add {
+  background: #20bf6b;
+  color: white;
+}
+
+.spin {
+  background: #ff4757;
+  color: white;
+  font-size: 20px;
+  padding: 15px 35px;
+}
+
+.reset {
+  background: #576574;
+  color: white;
+}
+
+.reward-list {
+  margin-top: 15px;
+}
+
+.reward {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0d1728;
+  padding: 10px 15px;
+  margin: 7px 0;
+  border-radius: 10px;
+}
+
+.delete {
+  background: #ee5253;
+  color: white;
+  padding: 7px 12px;
+}
+
+.wheel-area {
+  position: relative;
+  width: min(600px, 90vw);
+  aspect-ratio: 1;
+  margin: 25px auto;
+}
+
+#wheel {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  transition: transform 5s cubic-bezier(.12,.72,.15,1);
+  border: 8px solid white;
+}
+
+.pointer {
+  position: absolute;
+  top: -5px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 5;
+  width: 0;
+  height: 0;
+  border-left: 22px solid transparent;
+  border-right: 22px solid transparent;
+  border-top: 45px solid #ff4757;
+}
+
+.result {
+  font-size: 24px;
+  font-weight: bold;
+  min-height: 35px;
+  margin-top: 15px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <h1>🎡 Spin Wheel</h1>
+
+  <div class="controls">
+
+    <input
+      id="rewardInput"
+      type="text"
+      placeholder="Reward / Option ထည့်ပါ"
+    >
+
+    <button class="add" onclick="addReward()">
+      + Add
+    </button>
+
+    <div class="reward-list" id="rewardList"></div>
+
+    <br>
+
+    <button class="spin" onclick="spinWheel()">
+      SPIN
+    </button>
+
+    <button class="reset" onclick="resetRewards()">
+      Reset
+    </button>
+
+  </div>
+
+  <div class="wheel-area">
+    <div class="pointer"></div>
+    <canvas id="wheel"></canvas>
+  </div>
+
+  <div class="result" id="result">
+    Ready to Spin
+  </div>
+
+</div>
+
+<script>
+const canvas = document.getElementById("wheel");
+const ctx = canvas.getContext("2d");
+
+let rewards = JSON.parse(localStorage.getItem("spinRewards")) || [
+  "Reward 1",
+  "Reward 2",
+  "Reward 3",
+  "Reward 4",
+  "Reward 5",
+  "Reward 6"
+];
+
+let rotation = 0;
+let spinning = false;
+
+function saveRewards() {
+  localStorage.setItem("spinRewards", JSON.stringify(rewards));
+}
+
+function addReward() {
+  const input = document.getElementById("rewardInput");
+  const value = input.value.trim();
+
+  if (!value) return;
+
+  rewards.push(value);
+  input.value = "";
+
+  saveRewards();
+  drawWheel();
+  showRewards();
+}
+
+function deleteReward(index) {
+  rewards.splice(index, 1);
+
+  if (rewards.length === 0) {
+    rewards.push("Reward 1");
+  }
+
+  saveRewards();
+  drawWheel();
+  showRewards();
+}
+
+function resetRewards() {
+  rewards = [
+    "Reward 1",
+    "Reward 2",
+    "Reward 3",
+    "Reward 4",
+    "Reward 5",
+    "Reward 6"
+  ];
+
+  saveRewards();
+  drawWheel();
+  showRewards();
+
+  document.getElementById("result").textContent = "Ready to Spin";
+}
+
+function showRewards() {
+  const list = document.getElementById("rewardList");
+
+  list.innerHTML = rewards.map((reward, index) => `
+    <div class="reward">
+      <span>${escapeHtml(reward)}</span>
+      <button class="delete" onclick="deleteReward(${index})">
+        Delete
+      </button>
+    </div>
+  `).join("");
+}
+
+function escapeHtml(text) {
+  const div = document.createElement("div");
+  div.textContent = text;
+  return div.innerHTML;
+}
+
+function resizeCanvas() {
+  const size = canvas.parentElement.clientWidth;
+  const dpr = window.devicePixelRatio || 1;
+
+  canvas.width = size * dpr;
+  canvas.height = size * dpr;
+
+  canvas.style.width = size + "px";
+  canvas.style.height = size + "px";
+
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+  drawWheel();
+}
+
+function drawWheel() {
+  const size = canvas.clientWidth;
+  const center = size / 2;
+  const radius = size / 2 - 8;
+
+  ctx.clearRect(0, 0, size, size);
+
+  if (rewards.length === 0) return;
+
+  const slice = (Math.PI * 2) / rewards.length;
+
+  const colors = [
+    "#e74c3c",
+    "#f1c40f",
+    "#2ecc71",
+    "#3498db",
+    "#9b59b6",
+    "#e67e22",
+    "#1abc9c",
+    "#34495e"
+  ];
+
+  rewards.forEach((reward, i) => {
+
+    const start = i * slice - Math.PI / 2;
+    const end = start + slice;
+
+    ctx.beginPath();
+    ctx.moveTo(center, center);
+    ctx.arc(center, center, radius, start, end);
+    ctx.closePath();
+
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.fill();
+
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    ctx.save();
+
+    ctx.translate(
+      center + Math.cos(start + slice / 2) * radius * 0.62,
+      center + Math.sin(start + slice / 2) * radius * 0.62
+    );
+
+    ctx.rotate(start + slice / 2 + Math.PI / 2);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 16px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    let text = reward;
+
+    if (text.length > 18) {
+      text = text.substring(0, 18) + "...";
+    }
+
+    ctx.fillText(text, 0, 0);
+
+    ctx.restore();
+  });
+}
+
+function spinWheel() {
+
+  if (spinning || rewards.length === 0) return;
+
+  spinning = true;
+
+  const winner = Math.floor(Math.random() * rewards.length);
+
+  const slice = 360 / rewards.length;
+
+  const target =
+    360 * 6 +
+    (360 - (winner * slice + slice / 2));
+
+  rotation += target;
+
+  canvas.style.transform =
+    `rotate(${rotation}deg)`;
+
+  setTimeout(() => {
+
+    document.getElementById("result").textContent =
+      "🎉 " + rewards[winner];
+
+    spinning = false;
+
+  }, 5000);
+}
+
+window.addEventListener("resize", resizeCanvas);
+
+showRewards();
+resizeCanvas();
+</script>
+
+</body>
+</html>
